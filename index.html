@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a2e">
+<title>💕 Поцелуйный Dash</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{background:#0a0a2e;font-family:'Arial Black',Arial,sans-serif;touch-action:none;position:fixed;inset:0}
+  #gameCanvas{display:block;width:100%;height:100%;touch-action:none}
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;align-items:center;z-index:10;padding:20px;text-align:center}
+  .screen.active{display:flex}
+  #startScreen{background:linear-gradient(135deg,#667eea 0%,#764ba2 50%,#f093fb 100%)}
+  .title{font-size:clamp(28px,8vw,42px);color:#fff;text-shadow:0 0 20px #ff6b9d,0 0 40px #ff6b9d;margin-bottom:10px;animation:pulse 2s infinite}
+  .subtitle{font-size:clamp(14px,4vw,18px);color:#fff;margin-bottom:30px;opacity:.9}
+  .playBtn{padding:18px 50px;font-size:clamp(18px,5vw,24px);background:linear-gradient(135deg,#ff6b9d,#ff8e53);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 10px 30px rgba(255,107,157,.5);animation:bounce 1.5s infinite;font-weight:bold;font-family:inherit}
+  .playBtn:active{transform:scale(.95)}
+  .instructions{color:#fff;margin-top:26px;font-size:clamp(12px,3.5vw,14px);opacity:.85;line-height:1.7}
+  #hud{position:absolute;top:0;left:0;width:100%;padding:12px 15px;z-index:5;display:none}
+  #hud.active{display:block}
+  .progressBar{width:100%;height:8px;background:rgba(255,255,255,.2);border-radius:10px;overflow:hidden;margin-bottom:8px}
+  .progressFill{height:100%;background:linear-gradient(90deg,#ff6b9d,#ffd93d);width:0%;border-radius:10px}
+  .stats{display:flex;justify-content:space-between;color:#fff;font-size:13px;text-shadow:0 2px 4px rgba(0,0,0,.5)}
+  #winScreen{background:linear-gradient(135deg,#ff6b9d 0%,#f093fb 50%,#ffd93d 100%)}
+  .winTitle{font-size:clamp(24px,7vw,34px);color:#fff;text-shadow:0 0 30px #fff;margin-bottom:18px;animation:zoomIn .5s;line-height:1.3}
+  .prizeBox{background:#fff;padding:26px 20px;border-radius:20px;margin:10px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:slideUp .8s;max-width:340px}
+  .prizeText{font-size:18px;color:#764ba2;margin-bottom:10px}
+  .prizeAmount{font-size:64px;color:#ff6b9d;text-shadow:0 0 20px #ff6b9d;animation:pulse 1s infinite;line-height:1}
+  .prizeLabel{font-size:20px;color:#764ba2;margin-top:8px}
+  .kissEmoji{font-size:48px;margin:12px 0;animation:bounce 1s infinite}
+  .restartBtn{padding:14px 36px;font-size:16px;background:#764ba2;color:#fff;border:none;border-radius:30px;margin-top:18px;cursor:pointer;font-family:inherit}
+  #loseScreen{background:rgba(10,10,46,.92)}
+  .loseText{font-size:clamp(26px,7vw,32px);color:#ff6b9d;margin-bottom:16px;animation:shake .5s}
+  .attempts{color:#fff;font-size:16px;margin-bottom:24px}
+  .tip{color:rgba(255,255,255,.6);font-size:13px;margin-top:14px;max-width:300px;line-height:1.5}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  @keyframes zoomIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes slideUp{from{transform:translateY(50px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+  .floating-hearts{position:absolute;font-size:28px;animation:floatHeart 3s infinite;pointer-events:none}
+  @keyframes floatHeart{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-220px) rotate(360deg);opacity:0}}
+</style>
+</head>
+<body>
+  <div id="startScreen" class="screen active">
+    <div class="title">💕 ПОЦЕЛУЙНЫЙ DASH 💕</div>
+    <div class="subtitle">Пройди уровень и получи приз!</div>
+    <button class="playBtn" id="playBtn">ИГРАТЬ</button>
+    <div class="instructions">Кубик едет сам 🏃<br>Тапай по экрану, чтобы прыгать<br>Избегай шипов и блоков<br>Доберись до финиша! 💋</div>
+  </div>
+
+  <div id="hud">
+    <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
+    <div class="stats"><span id="progressText">0%</span><span id="attemptsText">Попытка: 1</span></div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="loseScreen" class="screen">
+    <div class="loseText">💥 Ой!</div>
+    <div class="attempts" id="loseAttempts">Попытка: 1</div>
+    <button class="playBtn" id="retryBtn">ЕЩЁ РАЗ</button>
+    <div class="tip">Прыгай чуть заранее, не вплотную к шипу 🐱</div>
+  </div>
+
+  <div id="winScreen" class="screen">
+    <div class="winTitle">🎉 УРОВЕНЬ ПРОЙДЕН!</div>
+    <div class="prizeBox">
+      <div class="prizeText">Твой приз:</div>
+      <div class="kissEmoji">💋💋💋</div>
+      <div class="prizeAmount">3</div>
+      <div class="prizeLabel">поцелуя от любимого</div>
+    </div>
+    <button class="restartBtn" id="againBtn">Играть снова</button>
+  </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', ()=>setTimeout(resizeCanvas,200));
+
+// ===== ФИЗИКА (прыжок высокий и воздушный = проходимый уровень) =====
+const GRAVITY = 0.5;
+const JUMP_FORCE = -14;     // подъём ~189px — любые блоки <=110 запрыгиваются с запасом
+const SPEED = 4;            // чуть медленнее = легче таймить на телефоне
+const SIZE = 40;
+const SCREEN_X = 90;
+const LEVEL_END = 3900;
+
+let gameRunning=false, attempts=1, cameraX=0, particles=[], stars=[], jumpBuffer=0, rafId=null;
+const player={x:SCREEN_X,y:0,vy:0,onGround:false,rotation:0,color:'#ff6b9d'};
+
+function getGroundY(){ return canvas.height - Math.max(90, canvas.height*0.16); }
+
+// ===== УРОВЕНЬ (проверен математически, каждое препятствие перелетается с широким окном) =====
+// spike = шип на земле; block = платформа-островок (на неё можно запрыгнуть, между ними чистая земля)
+const obstacles=[
+  {type:'spike',x:600,w:40,h:40},
+  {type:'spike',x:900,w:40,h:40},
+  {type:'spike',x:1200,w:40,h:40},
+  {type:'spike',x:1500,w:40,h:40},{type:'spike',x:1540,w:40,h:40},   // пара
+  {type:'block',x:1850,w:140,h:80},                                   // островок
+  {type:'spike',x:2250,w:40,h:40},
+  {type:'block',x:2550,w:150,h:100},                                  // островок повыше
+  {type:'spike',x:2950,w:40,h:40},{type:'spike',x:2990,w:40,h:40},    // пара
+  {type:'spike',x:3300,w:40,h:40},{type:'spike',x:3340,w:40,h:40},{type:'spike',x:3380,w:40,h:40}, // тройка-ров
+];
+const finish={x:3700,w:20,h:200,y:0};
+
+function initStars(){ stars=[]; for(let i=0;i<60;i++) stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,speed:Math.random()*0.5+0.1}); }
+initStars();
+
+function createParticles(x,y,color,n){ for(let i=0;i<n;i++) particles.push({x,y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,life:1,color,size:Math.random()*4+2}); }
+
+function doJump(){ player.vy=JUMP_FORCE; player.onGround=false; jumpBuffer=0; createParticles(player.x+SIZE/2,player.y+SIZE,'#ff6b9d',8); }
+function jump(){ if(!gameRunning)return; if(player.onGround)doJump(); else jumpBuffer=9; }
+
+// управление (тап + мышь + клавиатура), preventDefault убирает скролл/зум/дубли на телефоне
+canvas.addEventListener('touchstart',e=>{e.preventDefault();jump();},{passive:false});
+canvas.addEventListener('mousedown',e=>{e.preventDefault();jump();});
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+
+function overlap(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+// хитбокс шипа = только центр (остриё), не весь квадрат — как в настоящем GD
+function spikeHB(o){ return {x:o.x+o.w*0.30,y:o.y+o.h*0.45,w:o.w*0.40,h:o.h*0.55}; }
+
+function update(){
+  if(!gameRunning)return;
+  const gY=getGroundY();
+  obstacles.forEach(o=>{o.y=gY-o.h;});
+  finish.y=gY-finish.h;
+
+  player.x+=SPEED; cameraX=player.x-SCREEN_X;
+  player.vy+=GRAVITY; player.y+=player.vy;
+
+  if(player.y+SIZE>=gY){ player.y=gY-SIZE; player.vy=0; player.onGround=true; }
+  if(jumpBuffer>0){ if(player.onGround)doJump(); else jumpBuffer--; }
+
+  if(!player.onGround)player.rotation+=0.16;
+  else player.rotation=Math.round(player.rotation/(Math.PI/2))*(Math.PI/2);
+
+  const pr={x:player.x,y:player.y,w:SIZE,h:SIZE};
+  for(const o of obstacles){
+    if(o.type==='spike'){ if(overlap(pr,spikeHB(o))){gameOver();return;} }
+    else{
+      if(!overlap(pr,o))continue;
+      const bottom=player.y+SIZE, prevBottom=bottom-player.vy;
+      // заскакивание на верх блока с щедрым допуском (анти-туннель + прощение угла)
+      if(player.vy>0 && prevBottom<=o.y+18){ player.y=o.y-SIZE; player.vy=0; player.onGround=true; pr.y=player.y; }
+      else { gameOver(); return; }
+    }
+  }
+
+  if(player.x>=finish.x){ winGame(); return; }
+
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.life-=0.02;return p.life>0;});
+  const prog=Math.min(((player.x-SCREEN_X)/(finish.x-SCREEN_X))*100,100);
+  document.getElementById('progressFill').style.width=prog+'%';
+  document.getElementById('progressText').textContent=Math.floor(prog)+'%';
+}
+
+function draw(){
+  const gY=getGroundY();
+  const grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,'#0a0a2e');grad.addColorStop(.5,'#1a1a4e');grad.addColorStop(1,'#2a1a3e');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,canvas.width,canvas.height);
+  stars.forEach(s=>{s.x-=s.speed;if(s.x<0)s.x=canvas.width;ctx.fillStyle='#fff';ctx.globalAlpha=.6;ctx.fillRect(s.x,s.y,s.size,s.size);});
+  ctx.globalAlpha=1;
+
+  ctx.save();ctx.translate(-cameraX,0);
+  ctx.fillStyle='#4a3a6e';ctx.fillRect(cameraX,gY,canvas.width,canvas.height-gY);
+  ctx.strokeStyle='#ff6b9d';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cameraX,gY);ctx.lineTo(cameraX+canvas.width,gY);ctx.stroke();
+
+  obstacles.forEach(o=>{
+    if(o.x+o.w<cameraX||o.x>cameraX+canvas.width)return;
+    if(o.type==='spike'){
+      ctx.fillStyle='#ff4757';ctx.beginPath();ctx.moveTo(o.x,o.y+o.h);ctx.lineTo(o.x+o.w/2,o.y);ctx.lineTo(o.x+o.w,o.y+o.h);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#ff6b9d';ctx.lineWidth=2;ctx.stroke();
+    }else{
+      ctx.fillStyle='#764ba2';ctx.fillRect(o.x,o.y,o.w,o.h);
+      ctx.strokeStyle='#ff6b9d';ctx.lineWidth=2;ctx.strokeRect(o.x,o.y,o.w,o.h);
+      ctx.fillStyle='#9b6bc4';ctx.fillRect(o.x+5,o.y+5,o.w-10,5);
+    }
+  });
+
+  if(finish.x>cameraX&&finish.x<cameraX+canvas.width){
+    ctx.fillStyle='#ffd93d';ctx.fillRect(finish.x,finish.y,finish.w,finish.h);
+    ctx.font='40px Arial';ctx.fillText('💕',finish.x-12,finish.y+50);
+  }
+
+  ctx.save();ctx.translate(player.x+SIZE/2,player.y+SIZE/2);ctx.rotate(player.rotation);
+  ctx.fillStyle=player.color;ctx.fillRect(-SIZE/2,-SIZE/2,SIZE,SIZE);
+  ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.strokeRect(-SIZE/2,-SIZE/2,SIZE,SIZE);
+  ctx.fillStyle='#fff';ctx.fillRect(-12,-8,8,8);ctx.fillRect(4,-8,8,8);
+  ctx.fillStyle='#000';ctx.fillRect(-9,-5,4,4);ctx.fillRect(7,-5,4,4);
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,5,8,0,Math.PI);ctx.stroke();
+  ctx.restore();
+
+  particles.forEach(p=>{ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);});
+  ctx.globalAlpha=1;ctx.restore();
+}
+
+function loop(){ update(); draw(); rafId=requestAnimationFrame(loop); }
+
+function resetPlayer(){ const gY=getGroundY(); player.x=SCREEN_X;player.y=gY-SIZE;player.vy=0;player.onGround=true;player.rotation=0;cameraX=0;particles=[];jumpBuffer=0; }
+function startGame(){ document.getElementById('startScreen').classList.remove('active');document.getElementById('hud').classList.add('active');resetPlayer();gameRunning=true;if(rafId)cancelAnimationFrame(rafId);loop(); }
+function gameOver(){ gameRunning=false;attempts++;document.getElementById('loseAttempts').textContent='Попытка: '+attempts;document.getElementById('attemptsText').textContent='Попытка: '+attempts;setTimeout(()=>document.getElementById('loseScreen').classList.add('active'),350); }
+function retryLevel(){ document.getElementById('loseScreen').classList.remove('active');resetPlayer();gameRunning=true; }
+function winGame(){ gameRunning=false; for(let i=0;i<22;i++)setTimeout(()=>{const h=document.createElement('div');h.className='floating-hearts';h.textContent=['💕','💖','💗','💝','💘','💋'][Math.floor(Math.random()*6)];h.style.left=Math.random()*100+'%';h.style.bottom='0';h.style.animationDelay=Math.random()*2+'s';document.getElementById('winScreen').appendChild(h);},i*90); setTimeout(()=>{document.getElementById('hud').classList.remove('active');document.getElementById('winScreen').classList.add('active');},350); }
+
+document.getElementById('playBtn').addEventListener('click',startGame);
+document.getElementById('retryBtn').addEventListener('click',retryLevel);
+document.getElementById('againBtn').addEventListener('click',()=>location.reload());
+
+window.addEventListener('load',()=>{resizeCanvas();resetPlayer();draw();});
+</script>
+</body>
+</html>
